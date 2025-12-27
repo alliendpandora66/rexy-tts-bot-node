@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rexy | VOX TTS Pro</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root { --primary: #fe2c55; --bg: #121212; --panel: #1e1e1e; --text: #eee; --accent: #00f2ea; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 0; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar Navigation */
+        .sidebar { width: 80px; background: #000; display: flex; flex-direction: column; align-items: center; padding-top: 20px; border-right: 1px solid #333; z-index: 10; }
+        .nav-btn { width: 50px; height: 50px; margin-bottom: 20px; border-radius: 12px; background: #222; border: none; cursor: pointer; color: #666; font-size: 20px; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
+        .nav-btn:hover { background: #333; color: white; }
+        .nav-btn.active { background: var(--primary); color: white; box-shadow: 0 0 15px rgba(254, 44, 85, 0.4); }
+
+        /* Main Content */
+        .main-content { flex-grow: 1; display: flex; gap: 20px; padding: 20px; position: relative; }
+        
+        /* Panels (Tab Content) */
+        .config-panel { width: 380px; display: none; flex-direction: column; gap: 15px; overflow-y: auto; height: 100%; padding-right: 5px; animation: fadeIn 0.3s; }
+        .config-panel.active { display: flex; }
+        
+        /* Chat Area */
+        .chat-area { flex-grow: 1; display: flex; flex-direction: column; background: #000; border-radius: 16px; border: 1px solid #333; overflow: hidden; }
+        
+        @keyframes fadeIn { from{opacity:0; transform:translateX(-10px);} to{opacity:1; transform:translateX(0);} }
+
+        /* UI Elements */
+        .card { background: var(--panel); padding: 20px; border-radius: 12px; border: 1px solid #333; }
+        h2 { margin: 0 0 15px 0; font-size: 1rem; color: #ccc; border-bottom: 1px solid #333; padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        input, select, textarea, button { width: 100%; padding: 10px; margin-bottom: 10px; background: #2a2a2a; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--primary); }
+        button { cursor: pointer; font-weight: bold; border: none; text-transform: uppercase; font-size: 0.8rem; transition: 0.2s; }
+        button:hover { filter: brightness(1.2); }
+        
+        .btn-connect { background: var(--primary); color: white; }
+        .btn-stop { background: #444; color: #aaa; }
+        .btn-action { background: #3498db; }
+        .btn-save { background: var(--green); color: #000; }
+        
+        .checkbox-row { display: flex; align-items: center; justify-content: space-between; background: #252525; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
+        input[type="checkbox"] { width: auto; margin: 0; transform: scale(1.3); cursor: pointer; }
+
+        /* Game Editor Specifics */
+        .game-item { background: #252525; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--accent); }
+        .tag { font-size: 0.7em; padding: 2px 6px; background: #444; border-radius: 4px; color: #bbb; margin-right: 5px; }
+        
+        /* Chat Messages */
+        .chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; font-family: 'Consolas', monospace; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 10px; border-left: 4px solid #333; background: rgba(255,255,255,0.03); border-radius: 0 6px 6px 0; }
+        .user-tiktok { color: #fe2c55; font-weight: bold; }
+        .user-twitch { color: #a970ff; font-weight: bold; }
+        .msg.game { border-left-color: var(--gold); background: rgba(255, 215, 0, 0.05); }
+
+        /* Hidden File Input */
+        #fileInputGames, #fileInputWords { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <button class="nav-btn active" onclick="switchTab('conn')">📡</button>
+        <button class="nav-btn" onclick="switchTab('games')">🎮</button>
+        <button class="nav-btn" onclick="switchTab('automod')">🛡️</button>
+    </div>
+
+    <div class="main-content">
+        
+        <div id="tab-conn" class="config-panel active">
+            <div class="card">
+                <h2>📡 Conexión</h2>
+                <div style="display:flex; gap:5px; margin-bottom:10px;">
+                    <button id="btn-tiktok" onclick="setPlatform('tiktok')" style="background:var(--primary); opacity:1;">TikTok</button>
+                    <button id="btn-twitch" onclick="setPlatform('twitch')" style="background:#333; opacity:0.6;">Twitch</button>
+                </div>
+                <input type="text" id="channelInput" placeholder="Nombre de Usuario">
+                <div style="display:flex; gap:5px;">
+                    <button onclick="connect()" class="btn-connect">Conectar</button>
+                    <button onclick="disconnect()" class="btn-stop">Desconectar</button>
+                </div>
+                <div id="statusBox" style="text-align:center; font-size:0.8em; color:#666; margin-top:5px;">Offline</div>
+            </div>
+
+            <div class="card">
+                <h2>🎙️ Configuración Voz</h2>
+                <select id="voiceSelect"></select>
+                <div class="checkbox-row">
+                    <label>Leer nombres de usuario</label>
+                    <input type="checkbox" id="readName" checked>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div><label style="font-size:0.7em">Velocidad</label><input type="range" id="rate" min="0.5" max="2" step="0.1" value="1"></div>
+                    <div><label style="font-size:0.7em">Volumen</label><input type="range" id="volume" min="0" max="1" step="0.1" value="1"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-games" class="config-panel">
+            <div class="card">
+                <h2>🎮 Juegos y Comandos</h2>
+                <div id="gamesList" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div>
+                
+                <div style="display:flex; gap:5px;">
+                    <button onclick="openGameEditor()" style="border:1px dashed #666; background:transparent;">+ Crear Nuevo</button>
+                    <button onclick="exportGames()" style="width:auto;">💾</button>
+                    <button onclick="document.getElementById('fileInputGames').click()" style="width:auto;">📂</button>
+                </div>
+                <input type="file" id="fileInputGames" accept=".json" onchange="importGames(this)">
+            </div>
+
+            <div id="gameEditor" class="card" style="display:none; border-color:var(--accent);">
+                <h2 style="color:var(--accent); border-color:var(--accent);">✏️ Editor</h2>
+                <input type="hidden" id="editGameId">
+                
+                <label style="font-size:0.7em; color:#aaa;">Comando (Trigger)</label>
+                <input type="text" id="editTrigger" placeholder="!comando">
+                
+                <label style="font-size:0.7em; color:#aaa;">Tipo de Comando/Juego</label>
+                <select id="editType" onchange="updateEditorUI()">
+                    <option value="command">💬 Comando (Respuesta)</option>
+                    <option value="chance">🎲 Probabilidad (Win/Lose)</option>
+                    <option value="range">📏 Rango (Dados/1-100)</option>
+                    <option value="choice">🎱 Elección (Lista)</option>
+                    <option value="versus">⚔️ Versus (Batalla)</option>
+                    <option value="custom">⚙️ Personalizado (Código)</option>
+                </select>
+
+                <div style="display:flex; gap:5px;">
+                    <div>
+                        <label style="font-size:0.7em; color:#aaa;">Cooldown (seg)</label>
+                        <input type="number" id="editCooldown" value="0">
+                    </div>
+                    <div>
+                        <label style="font-size:0.7em; color:#aaa;">Permisos</label>
+                        <select id="editPerm">
+                            <option value="all">Todos</option>
+                            <option value="mod">Solo Mods</option>
+                            <option value="sub">Solo Subs</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="fieldsChance" class="dyn-field" style="display:none;">
+                    <input type="number" id="editWinRate" placeholder="% Ganar (Ej: 50)">
+                    <input type="text" id="editWinMsg" placeholder="Msg Ganar: {user} ganó!">
+                    <input type="text" id="editLoseMsg" placeholder="Msg Perder: {user} perdió.">
+                </div>
+                <div id="fieldsRange" class="dyn-field" style="display:none;">
+                    <input type="number" id="editMaxVal" placeholder="Max Valor (Ej: 100)">
+                    <input type="text" id="editRangeMsg" placeholder="Msg: {user} sacó {result}">
+                </div>
+                <div id="fieldsChoice" class="dyn-field" style="display:none;">
+                    <textarea id="editOptions" placeholder="Opción 1; Opción 2; ..."></textarea>
+                    <input type="text" id="editChoiceMsg" placeholder="Msg: {user} {result}">
+                </div>
+                <div id="fieldsVersus" class="dyn-field" style="display:none;">
+                    <input type="number" id="editBossHP" placeholder="HP del Boss (Ej: 100)">
+                    <input type="text" id="editVersusMsg" placeholder="{user} atacó e hizo {result} de daño!">
+                </div>
+                <div id="fieldsCommand" class="dyn-field" style="display:none;">
+                    <input type="text" id="editCmdMsg" placeholder="Mensaje de respuesta: ¡Hola {user}!">
+                    <label style="font-size:0.7em; color:#aaa;">Sonido (Opcional)</label>
+                    <select id="editCmdSound">
+                        <option value="">-- Sin sonido --</option>
+                    </select>
+                </div>
+                <div id="fieldsCustom" class="dyn-field" style="display:none;">
+                    <textarea id="editCustomCode" placeholder="Código JS: return 'Hola ' + user;"></textarea>
+                    <label style="font-size:0.7em; color:#aaa;">Sonido (Opcional)</label>
+                    <select id="editCustomSound">
+                        <option value="">-- Sin sonido --</option>
+                    </select>
+                </div>
+
+                <div style="display:flex; gap:5px; margin-top:10px;">
+                    <button onclick="saveGame()" class="btn-save">Guardar</button>
+                    <button onclick="document.getElementById('gameEditor').style.display='none'" class="btn-stop">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-automod" class="config-panel">
+            <div class="card">
+                <h2>� Efectos de Sonido</h2>
+                <div style="display:flex; gap:5px; margin-bottom:10px;">
+                    <input type="file" id="soundFileInput" accept=".mp3,.wav,.ogg,.webm" style="display:none;">
+                    <button onclick="document.getElementById('soundFileInput').click()" style="width:100%;">Subir Sonido (.mp3, .wav, .ogg)</button>
+                </div>
+                <div id="soundsList" style="max-height:250px; overflow-y:auto; margin-bottom:10px;"></div>
+            </div>
+
+            <div class="card">
+                <div class="checkbox-row">
+                    <label>Filtro Groserías</label>
+                    <input type="checkbox" id="autoModActive" checked>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="newWord" placeholder="Palabra prohibida...">
+                    <button onclick="addWord()" style="width:40px;">+</button>
+                </div>
+                <div id="wordList" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div>
+                <div style="display:flex; gap:5px;">
+                    <button onclick="exportWords()" class="btn-action">Guardar JSON</button>
+                    <button onclick="document.getElementById('fileInputWords').click()" class="btn-action">Cargar JSON</button>
+                    <input type="file" id="fileInputWords" accept=".json" onchange="importWords(this)">
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <div style="padding:15px; background:#111; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:bold; color:var(--text);">Chat en vivo</span>
+                <span id="chatStatus" style="font-size:0.8em; color:#666;">🔴 Desconectado</span>
+            </div>
+            <div id="chatContainer" class="chat-box">
+                <div style="text-align:center; color:#444; margin-top:50px;">
+                    Rexy v4.0 Activado<br>Esperando conexión...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const socket = io();
+        const synth = window.speechSynthesis;
+        let voices = [];
+        let messageQueue = [];
+        let isSpeaking = false;
+        let selectedPlatform = 'tiktok';
+        let sounds = []; // Array de sonidos disponibles
+        
+        // --- DATA ---
+        let bannedWords = ["tonto", "idiota"];
+        let gamesDB = [
+            { 
+                id: 'ruleta', trigger: '!ruleta', type: 'chance', 
+                cooldown: 5, lastUsed: 0, perm: 'all',
+                config: { winRate: 50, winMsg: "Click... {user} vive.", loseMsg: "BANG! {user} murió." }
+            },
+            {
+                id: 'boss', trigger: '!boss', type: 'versus',
+                cooldown: 10, lastUsed: 0, perm: 'all',
+                config: { bossHP: 500, msg: "⚔️ {user} golpea al Boss y le quita {result} HP!" }
+            }
+        ];
+
+        // --- INIT ---
+        window.onload = () => {
+            loadVoices();
+            if(speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
+            renderWords();
+            renderGames();
+            loadSounds();
+        };
+
+        function switchTab(tab) {
+            document.querySelectorAll('.config-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-'+tab).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        function setPlatform(p) {
+            selectedPlatform = p;
+            document.getElementById('btn-tiktok').style.opacity = p==='tiktok' ? '1' : '0.6';
+            document.getElementById('btn-twitch').style.opacity = p==='twitch' ? '1' : '0.6';
+            document.getElementById('btn-tiktok').style.background = p==='tiktok' ? 'var(--primary)' : '#333';
+            document.getElementById('btn-twitch').style.background = p==='twitch' ? '#a970ff' : '#333';
+        }
+
+        function loadVoices() {
+            voices = synth.getVoices();
+            const s = document.getElementById('voiceSelect'); s.innerHTML = '';
+            voices.forEach((v,i) => {
+                const o = document.createElement('option'); o.text = `${v.name.slice(0,25)} (${v.lang})`; o.value = i;
+                if(v.lang.includes('es') && !s.value) o.selected = true;
+                s.appendChild(o);
+            });
+        }
+
+        // --- CONNECTION ---
+        function connect() {
+            const u = document.getElementById('channelInput').value;
+            if(!u) return alert("Falta usuario");
+            messageQueue = []; synth.cancel();
+            socket.emit('start-connection', { platform: selectedPlatform, url: u });
+            document.getElementById('statusBox').innerText = "Conectando...";
+        }
+        function disconnect() { socket.emit('stop-connection'); }
+        
+        socket.on('status', d => {
+            document.getElementById('statusBox').innerText = d.msg;
+            document.getElementById('chatStatus').innerText = d.connected ? "🟢 Conectado" : "🔴 Desconectado";
+            document.getElementById('chatStatus').style.color = d.connected ? "var(--green)" : "#666";
+        });
+
+        // --- CHAT & LOGIC ---
+        socket.on('chat-message', data => {
+            const user = data.nickname || data.user;
+            const text = data.comment;
+
+            // AutoMod
+            if(document.getElementById('autoModActive').checked) {
+                if(bannedWords.some(w => text.toLowerCase().includes(w.toLowerCase()))) return;
+            }
+
+            // Games
+            if(text.startsWith('!')) {
+                const cmd = text.split(' ')[0].toLowerCase();
+                const game = gamesDB.find(g => g.trigger === cmd);
+                
+                if(game) {
+                    // Check Cooldown
+                    const now = Date.now();
+                    const cdMs = (game.cooldown || 0) * 1000;
+                    if(now < (game.lastUsed || 0) + cdMs) return; // En espera
+
+                    // Check Permissions
+                    if(game.perm === 'mod' && !data.isMod) return;
+                    if(game.perm === 'sub' && !data.isSub) return;
+
+                    // Run Game
+                    game.lastUsed = now;
+                    const res = runGameLogic(game, user);
+                    addChat(user, text, data.platform, 'game');
+                    if(game.config.sound) playSound(game.config.sound);
+                    speak(res);
+                    return;
+                }
+            }
+
+            // Normal TTS
+            addChat(user, text, data.platform, 'normal');
+            let clean = text.replace(/(https?:\/\/[^\s]+)/g, "LINK").replace(/(.)\1{3,}/g, '$1$1');
+            let final = clean;
+            if(document.getElementById('readName').checked) final = `${user} dice: ${clean}`;
+            speak(final);
+        });
+
+        function runGameLogic(g, user) {
+            if(g.type === 'chance') {
+                const win = Math.random()*100 < g.config.winRate;
+                return win ? g.config.winMsg.replace('{user}', user) : g.config.loseMsg.replace('{user}', user);
+            }
+            if(g.type === 'range') {
+                const r = Math.floor(Math.random() * (g.config.max + 1));
+                return g.config.msg.replace('{user}', user).replace('{result}', r);
+            }
+            if(g.type === 'choice') {
+                const opts = g.config.options;
+                const r = opts[Math.floor(Math.random()*opts.length)];
+                return g.config.msg.replace('{user}', user).replace('{result}', r);
+            }
+            if(g.type === 'versus') {
+                const dmg = Math.floor(Math.random() * 100);
+                return g.config.msg.replace('{user}', user).replace('{result}', dmg);
+            }
+            if(g.type === 'command') {
+                return g.config.msg.replace('{user}', user);
+            }
+            if(g.type === 'custom') {
+                try {
+                    const func = new Function('user', g.config.code);
+                    return func(user);
+                } catch(e) {
+                    return "Error en código personalizado";
+                }
+            }
+            return "";
+        }
+
+        function addChat(user, text, platform, type) {
+            const c = document.getElementById('chatContainer');
+            const d = document.createElement('div');
+            const pClass = platform === 'tiktok' ? 'user-tiktok' : 'user-twitch';
+            d.className = `msg ${type}`;
+            d.innerHTML = `<span class="${pClass}">${user}:</span> ${text}`;
+            c.appendChild(d);
+            c.scrollTop = c.scrollHeight;
+        }
+
+        function speak(txt) {
+            messageQueue.push(txt);
+            if(messageQueue.length > 5) messageQueue.shift();
+            processQueue();
+        }
+        function processQueue() {
+            if(isSpeaking || messageQueue.length === 0) return;
+            isSpeaking = true;
+            const u = new SpeechSynthesisUtterance(messageQueue.shift());
+            const v = document.getElementById('voiceSelect').value;
+            if(voices[v]) u.voice = voices[v];
+            u.rate = document.getElementById('rate').value;
+            u.volume = document.getElementById('volume').value;
+            u.onend = u.onerror = () => { isSpeaking = false; processQueue(); };
+            synth.speak(u);
+        }
+
+        // --- GAME EDITOR LOGIC ---
+        function renderGames() {
+            const list = document.getElementById('gamesList'); list.innerHTML = '';
+            gamesDB.forEach((g, i) => {
+                const div = document.createElement('div'); div.className = 'game-item';
+                div.innerHTML = `<div><strong>${g.trigger}</strong> <span class="tag">${g.type}</span></div>
+                                 <div><button onclick="editGame(${i})" style="width:auto; margin:0;">✏️</button>
+                                 <button onclick="delGame(${i})" style="width:auto; margin:0; background:var(--red);">🗑️</button></div>`;
+                list.appendChild(div);
+            });
+        }
+        function openGameEditor() {
+            document.getElementById('gameEditor').style.display = 'block';
+            document.getElementById('editGameId').value = -1;
+            document.getElementById('editTrigger').value = "";
+            updateEditorUI();
+        }
+        function updateEditorUI() {
+            const t = document.getElementById('editType').value;
+            document.querySelectorAll('.dyn-field').forEach(d => d.style.display='none');
+            if(t==='chance') document.getElementById('fieldsChance').style.display='block';
+            if(t==='range') document.getElementById('fieldsRange').style.display='block';
+            if(t==='choice') document.getElementById('fieldsChoice').style.display='block';
+            if(t==='versus') document.getElementById('fieldsVersus').style.display='block';
+            if(t==='command') document.getElementById('fieldsCommand').style.display='block';
+            if(t==='custom') document.getElementById('fieldsCustom').style.display='block';
+        }
+        function saveGame() {
+            const idx = parseInt(document.getElementById('editGameId').value);
+            const trig = document.getElementById('editTrigger').value.trim();
+            const type = document.getElementById('editType').value;
+            const cd = parseInt(document.getElementById('editCooldown').value) || 0;
+            const perm = document.getElementById('editPerm').value;
+
+            if(!trig) return alert("Falta el comando");
+            
+            let cfg = {};
+            if(type==='chance') cfg = { winRate: parseInt(document.getElementById('editWinRate').value), winMsg: document.getElementById('editWinMsg').value, loseMsg: document.getElementById('editLoseMsg').value };
+            if(type==='range') cfg = { max: parseInt(document.getElementById('editMaxVal').value), msg: document.getElementById('editRangeMsg').value };
+            if(type==='choice') cfg = { options: document.getElementById('editOptions').value.split(';').map(s=>s.trim()), msg: document.getElementById('editChoiceMsg').value };
+            if(type==='versus') cfg = { bossHP: parseInt(document.getElementById('editBossHP').value), msg: document.getElementById('editVersusMsg').value };
+            if(type==='command') cfg = { msg: document.getElementById('editCmdMsg').value, sound: document.getElementById('editCmdSound').value || null };
+            if(type==='custom') cfg = { code: document.getElementById('editCustomCode').value, sound: document.getElementById('editCustomSound').value || null };
+
+            const obj = { id: trig, trigger: trig, type: type, cooldown: cd, lastUsed: 0, perm: perm, config: cfg };
+            if(idx === -1) gamesDB.push(obj); else gamesDB[idx] = obj;
+            
+            renderGames(); document.getElementById('gameEditor').style.display='none';
+        }
+        function editGame(i) {
+            const g = gamesDB[i]; openGameEditor();
+            document.getElementById('editGameId').value = i;
+            document.getElementById('editTrigger').value = g.trigger;
+            document.getElementById('editType').value = g.type;
+            document.getElementById('editCooldown').value = g.cooldown || 0;
+            document.getElementById('editPerm').value = g.perm || 'all';
+            updateEditorUI();
+            // Populate fields
+            if(g.type==='chance') { 
+                document.getElementById('editWinRate').value = g.config.winRate; 
+                document.getElementById('editWinMsg').value = g.config.winMsg; 
+                document.getElementById('editLoseMsg').value = g.config.loseMsg; 
+            }
+            if(g.type==='range') { 
+                document.getElementById('editMaxVal').value = g.config.max; 
+                document.getElementById('editRangeMsg').value = g.config.msg; 
+            }
+            if(g.type==='choice') { 
+                document.getElementById('editOptions').value = g.config.options.join('; '); 
+                document.getElementById('editChoiceMsg').value = g.config.msg; 
+            }
+            if(g.type==='versus') { 
+                document.getElementById('editBossHP').value = g.config.bossHP; 
+                document.getElementById('editVersusMsg').value = g.config.msg; 
+            }
+            if(g.type==='command') { 
+                document.getElementById('editCmdMsg').value = g.config.msg; 
+                if(g.config.sound) document.getElementById('editCmdSound').value = g.config.sound;
+            }
+            if(g.type==='custom') { 
+                document.getElementById('editCustomCode').value = g.config.code; 
+                if(g.config.sound) document.getElementById('editCustomSound').value = g.config.sound;
+            }
+        }
+        function delGame(i) { if(confirm("¿Eliminar?")) { gamesDB.splice(i,1); renderGames(); } }
+
+        // --- SOUNDS MANAGEMENT ---
+        function loadSounds() {
+            fetch('/api/sounds')
+                .then(r => r.json())
+                .then(data => {
+                    sounds = data;
+                    renderSoundsList();
+                    updateSoundSelects();
+                })
+                .catch(e => console.error('Error al cargar sonidos:', e));
+        }
+
+        function renderSoundsList() {
+            const list = document.getElementById('soundsList');
+            list.innerHTML = '';
+            sounds.forEach((s, i) => {
+                const div = document.createElement('div');
+                div.className = 'game-item';
+                div.style.justifyContent = 'space-between';
+                div.innerHTML = `
+                    <div style="flex:1;">
+                        <strong>${s.filename}</strong>
+                        <div style="display:flex; gap:5px; margin-top:5px;">
+                            <button onclick="playSound('${s.url}')" style="width:auto; padding:5px 10px; font-size:0.7em;">▶ Escuchar</button>
+                        </div>
+                    </div>
+                    <button onclick="deleteSound('${s.filename}')" style="width:auto; background:var(--red);">🗑️</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function updateSoundSelects() {
+            // Actualizar selects de sonidos
+            ['editCmdSound', 'editCustomSound'].forEach(id => {
+                const sel = document.getElementById(id);
+                if(!sel) return;
+                const current = sel.value;
+                sel.innerHTML = '<option value="">-- Sin sonido --</option>';
+                sounds.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.url;
+                    opt.text = s.filename;
+                    sel.appendChild(opt);
+                });
+                sel.value = current;
+            });
+        }
+
+        document.getElementById('soundFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            const formData = new FormData();
+            formData.append('sound', file);
+
+            try {
+                const res = await fetch('/api/upload-sound', { method: 'POST', body: formData });
+                const data = await res.json();
+                if(data.success) {
+                    loadSounds();
+                    e.target.value = '';
+                } else {
+                    alert('Error: ' + (data.error || 'Desconocido'));
+                }
+            } catch(err) {
+                alert('Error al subir: ' + err.message);
+            }
+        });
+
+        function playSound(url) {
+            const audio = new Audio(url);
+            audio.volume = parseFloat(document.getElementById('volume').value);
+            audio.play().catch(e => console.error('Error al reproducir:', e));
+        }
+
+        function deleteSound(filename) {
+            if(!confirm('¿Eliminar este sonido?')) return;
+            fetch(`/api/sounds/${filename}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.success) loadSounds();
+                    else alert('Error al eliminar');
+                })
+                .catch(e => alert('Error: ' + e.message));
+        }
+
+        // --- IMPORT/EXPORT LOGIC ---
+        function exportGames() { downloadJSON(gamesDB, "rexy_games.json"); }
+        function importGames(input) { loadJSON(input, data => { gamesDB = data; renderGames(); }); }
+        
+        function renderWords() { /* Same logic as before */ 
+             const l = document.getElementById('wordList'); l.innerHTML = '';
+             bannedWords.forEach((w,i)=>{ l.innerHTML += `<div class='game-item'>${w} <button onclick='delWord(${i})' style='width:auto;'>x</button></div>`; });
+        }
+        function addWord() { const w = document.getElementById('newWord').value; if(w){bannedWords.push(w); renderWords(); document.getElementById('newWord').value='';} }
+        function delWord(i) { bannedWords.splice(i,1); renderWords(); }
+        function exportWords() { downloadJSON(bannedWords, "rexy_automod.json"); }
+        function importWords(input) { loadJSON(input, data => { bannedWords = data; renderWords(); }); }
+
+        function downloadJSON(data, name) {
+            const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+            a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        }
+        function loadJSON(input, cb) {
+            const f = input.files[0]; if(!f)return;
+            const r = new FileReader(); r.onload = e => cb(JSON.parse(e.target.result)); r.readAsText(f);
+        }
+
+    </script>
+</body>
+</html>
