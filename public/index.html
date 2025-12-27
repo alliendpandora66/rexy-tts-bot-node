@@ -267,12 +267,12 @@
             { 
                 id: 'ruleta', trigger: '!ruleta', type: 'chance', 
                 cooldown: 5, lastUsed: 0, perm: 'all',
-                config: { winRate: 50, winMsg: "Click... {user} vive.", loseMsg: "BANG! {user} murió." }
+                config: { winRate: 50, winMsg: "Click... {user} vive.", loseMsg: "BANG! {user} murió.", code: `if(Math.random() * 100 < 50) {\n    return "Click... " + user + " vive.";\n} else {\n    return "BANG! " + user + " murió.";\n}` }
             },
             {
                 id: 'boss', trigger: '!boss', type: 'versus',
                 cooldown: 10, lastUsed: 0, perm: 'all',
-                config: { bossHP: 500, msg: "⚔️ {user} golpea al Boss y le quita {result} HP!" }
+                config: { bossHP: 500, msg: "⚔️ {user} golpea al Boss y le quita {result} HP!", code: `const damage = Math.floor(Math.random() * 50) + 1;\nreturn "⚔️ " + user + " golpea al Boss y le quita " + damage + " HP!";` }
             }
         ];
 
@@ -282,7 +282,7 @@
             if(speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
             renderWords();
             renderGames();
-            codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+            if(!codeEditor) codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
                 mode: 'javascript',
                 theme: 'default',
                 lineNumbers: true,
@@ -431,6 +431,12 @@
             document.getElementById('gameEditor').style.display = 'flex';
             document.getElementById('editGameId').value = -1;
             document.getElementById('editTrigger').value = "";
+            if(!codeEditor) codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+                mode: 'javascript',
+                theme: 'default',
+                lineNumbers: true,
+                tabSize: 2
+            });
             updateEditorUI();
             codeEditor.refresh();
         }
@@ -438,6 +444,9 @@
             document.body.classList.remove('editor-open');
             document.getElementById('gameEditor').style.display = 'none';
         }
+        
+        function updateEditorUI() {
+            if(!codeEditor) return;
             const t = document.getElementById('editType').value;
             document.querySelectorAll('.dyn-field').forEach(d => d.style.display='none');
             if(t==='chance') document.getElementById('fieldsChance').style.display='block';
