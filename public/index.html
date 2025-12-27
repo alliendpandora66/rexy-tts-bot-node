@@ -13,13 +13,14 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 0; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
         /* Sidebar Navigation */
-        .sidebar { width: 80px; background: #000; display: flex; flex-direction: column; align-items: center; padding-top: 20px; border-right: 1px solid #333; z-index: 10; }
+        .sidebar { width: 80px; background: #000; display: flex; flex-direction: column; align-items: center; padding-top: 20px; border-right: 1px solid #333; z-index: 10; position: fixed; left: 0; height: 100%; }
         .nav-btn { width: 50px; height: 50px; margin-bottom: 20px; border-radius: 12px; background: #222; border: none; cursor: pointer; color: #666; font-size: 20px; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
         .nav-btn:hover { background: #333; color: white; }
         .nav-btn.active { background: var(--primary); color: white; box-shadow: 0 0 15px rgba(254, 44, 85, 0.4); }
 
         /* Main Content */
-        .main-content { flex-grow: 1; display: flex; gap: 20px; padding: 20px; position: relative; }
+        .main-content { margin-left: 80px; width: calc(100% - 80px); display: flex; gap: 20px; padding: 20px; position: relative; transition: width 0.3s; }
+        .editor-open .main-content { width: calc(50% - 80px); }
         
         /* Panels (Tab Content) */
         .config-panel { width: 380px; display: none; flex-direction: column; gap: 15px; overflow-y: auto; height: 100%; padding-right: 5px; animation: fadeIn 0.3s; }
@@ -27,6 +28,9 @@
         
         /* Chat Area */
         .chat-area { flex-grow: 1; display: flex; flex-direction: column; background: #000; border-radius: 16px; border: 1px solid #333; overflow: hidden; }
+        
+        /* Game Editor */
+        #gameEditor { position: fixed; right: 0; top: 0; width: 50%; height: 100%; background: var(--panel); border-left: 1px solid #333; display: none; flex-direction: column; padding: 20px; overflow-y: auto; z-index: 5; }
         
         @keyframes fadeIn { from{opacity:0; transform:translateX(-10px);} to{opacity:1; transform:translateX(0);} }
 
@@ -115,7 +119,7 @@
                 <input type="file" id="fileInputGames" accept=".json" onchange="importGames(this)">
             </div>
 
-            <div id="gameEditor" class="card" style="display:none; border-color:var(--accent); display:flex; gap:20px;">
+            <div id="gameEditor" style="display:none; border-color:var(--accent); display:flex; flex-direction:column; gap:20px;">
                 <div class="editor-left" style="flex:1;">
                     <h2 style="color:var(--accent); border-color:var(--accent);">✏️ Editor</h2>
                     <input type="hidden" id="editGameId">
@@ -182,7 +186,7 @@
 
                     <div style="display:flex; gap:5px; margin-top:10px;">
                         <button onclick="saveGame()" class="btn-save">Guardar</button>
-                        <button onclick="document.getElementById('gameEditor').style.display='none'" class="btn-stop">Cancelar</button>
+                        <button onclick="closeEditor()" class="btn-stop">Cancelar</button>
                     </div>
                 </div>
                 <div class="editor-right" style="flex:1;">
@@ -423,12 +427,17 @@
             });
         }
         function openGameEditor() {
-            document.getElementById('gameEditor').style.display = 'block';
+            document.body.classList.add('editor-open');
+            document.getElementById('gameEditor').style.display = 'flex';
             document.getElementById('editGameId').value = -1;
             document.getElementById('editTrigger').value = "";
             updateEditorUI();
+            codeEditor.refresh();
         }
-        function updateEditorUI() {
+        function closeEditor() {
+            document.body.classList.remove('editor-open');
+            document.getElementById('gameEditor').style.display = 'none';
+        }
             const t = document.getElementById('editType').value;
             document.querySelectorAll('.dyn-field').forEach(d => d.style.display='none');
             if(t==='chance') document.getElementById('fieldsChance').style.display='block';
@@ -441,6 +450,7 @@
             // Generate code
             const code = generateCode(t);
             codeEditor.setValue(code);
+            codeEditor.refresh();
         }
         
         function generateCode(type) {
@@ -483,6 +493,7 @@ return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{r
             return 'return "Comando no configurado";';
         }
         function saveGame() {
+            if(!codeEditor) return alert("Editor no cargado, intenta recargar la página");
             const idx = parseInt(document.getElementById('editGameId').value);
             const trig = document.getElementById('editTrigger').value.trim();
             const type = document.getElementById('editType').value;
@@ -504,7 +515,7 @@ return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{r
             const obj = { id: trig, trigger: trig, type: type, cooldown: cd, lastUsed: 0, perm: perm, config: cfg };
             if(idx === -1) gamesDB.push(obj); else gamesDB[idx] = obj;
             
-            renderGames(); document.getElementById('gameEditor').style.display='none';
+            renderGames(); closeEditor();
         }
         function editGame(i) {
             const g = gamesDB[i]; openGameEditor();
@@ -541,6 +552,7 @@ return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{r
                 if(g.config.sound) document.getElementById('editCustomSound').value = g.config.sound;
             }
             if(g.config.code) codeEditor.setValue(g.config.code);
+            codeEditor.refresh();
         }
         function delGame(i) { if(confirm("¿Eliminar?")) { gamesDB.splice(i,1); renderGames(); } }
 
