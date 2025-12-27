@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rexy | VOX TTS Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --primary: #fe2c55; --bg: #121212; --panel: #1e1e1e; --text: #eee; --accent: #00f2ea; --gold: #f1c40f; --green: #2ecc71; --red: #e74c3c; }
@@ -112,73 +115,79 @@
                 <input type="file" id="fileInputGames" accept=".json" onchange="importGames(this)">
             </div>
 
-            <div id="gameEditor" class="card" style="display:none; border-color:var(--accent);">
-                <h2 style="color:var(--accent); border-color:var(--accent);">✏️ Editor</h2>
-                <input type="hidden" id="editGameId">
-                
-                <label style="font-size:0.7em; color:#aaa;">Comando (Trigger)</label>
-                <input type="text" id="editTrigger" placeholder="!comando">
-                
-                <label style="font-size:0.7em; color:#aaa;">Tipo de Comando/Juego</label>
-                <select id="editType" onchange="updateEditorUI()">
-                    <option value="command">💬 Comando (Respuesta)</option>
-                    <option value="chance">🎲 Probabilidad (Win/Lose)</option>
-                    <option value="range">📏 Rango (Dados/1-100)</option>
-                    <option value="choice">🎱 Elección (Lista)</option>
-                    <option value="versus">⚔️ Versus (Batalla)</option>
-                    <option value="custom">⚙️ Personalizado (Código)</option>
-                </select>
+            <div id="gameEditor" class="card" style="display:none; border-color:var(--accent); display:flex; gap:20px;">
+                <div class="editor-left" style="flex:1;">
+                    <h2 style="color:var(--accent); border-color:var(--accent);">✏️ Editor</h2>
+                    <input type="hidden" id="editGameId">
+                    
+                    <label style="font-size:0.7em; color:#aaa;">Comando (Trigger)</label>
+                    <input type="text" id="editTrigger" placeholder="!comando">
+                    
+                    <label style="font-size:0.7em; color:#aaa;">Tipo de Comando/Juego</label>
+                    <select id="editType" onchange="updateEditorUI()">
+                        <option value="command">💬 Comando (Respuesta)</option>
+                        <option value="chance">🎲 Probabilidad (Win/Lose)</option>
+                        <option value="range">📏 Rango (Dados/1-100)</option>
+                        <option value="choice">🎱 Elección (Lista)</option>
+                        <option value="versus">⚔️ Versus (Batalla)</option>
+                        <option value="custom">⚙️ Personalizado (Código)</option>
+                    </select>
 
-                <div style="display:flex; gap:5px;">
-                    <div>
-                        <label style="font-size:0.7em; color:#aaa;">Cooldown (seg)</label>
-                        <input type="number" id="editCooldown" value="0">
+                    <div style="display:flex; gap:5px;">
+                        <div>
+                            <label style="font-size:0.7em; color:#aaa;">Cooldown (seg)</label>
+                            <input type="number" id="editCooldown" value="0">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7em; color:#aaa;">Permisos</label>
+                            <select id="editPerm">
+                                <option value="all">Todos</option>
+                                <option value="mod">Solo Mods</option>
+                                <option value="sub">Solo Subs</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label style="font-size:0.7em; color:#aaa;">Permisos</label>
-                        <select id="editPerm">
-                            <option value="all">Todos</option>
-                            <option value="mod">Solo Mods</option>
-                            <option value="sub">Solo Subs</option>
+
+                    <div id="fieldsChance" class="dyn-field" style="display:none;">
+                        <input type="number" id="editWinRate" placeholder="% Ganar (Ej: 50)">
+                        <input type="text" id="editWinMsg" placeholder="Msg Ganar: {user} ganó!">
+                        <input type="text" id="editLoseMsg" placeholder="Msg Perder: {user} perdió.">
+                    </div>
+                    <div id="fieldsRange" class="dyn-field" style="display:none;">
+                        <input type="number" id="editMaxVal" placeholder="Max Valor (Ej: 100)">
+                        <input type="text" id="editRangeMsg" placeholder="Msg: {user} sacó {result}">
+                    </div>
+                    <div id="fieldsChoice" class="dyn-field" style="display:none;">
+                        <textarea id="editOptions" placeholder="Opción 1; Opción 2; ..."></textarea>
+                        <input type="text" id="editChoiceMsg" placeholder="Msg: {user} {result}">
+                    </div>
+                    <div id="fieldsVersus" class="dyn-field" style="display:none;">
+                        <input type="number" id="editBossHP" placeholder="HP del Boss (Ej: 100)">
+                        <input type="text" id="editVersusMsg" placeholder="{user} atacó e hizo {result} de daño!">
+                    </div>
+                    <div id="fieldsCommand" class="dyn-field" style="display:none;">
+                        <input type="text" id="editCmdMsg" placeholder="Mensaje de respuesta: ¡Hola {user}!">
+                        <label style="font-size:0.7em; color:#aaa;">Sonido (Opcional)</label>
+                        <select id="editCmdSound">
+                            <option value="">-- Sin sonido --</option>
                         </select>
                     </div>
-                </div>
+                    <div id="fieldsCustom" class="dyn-field" style="display:none;">
+                        <textarea id="editCustomCode" placeholder="Código JS: return 'Hola ' + user;"></textarea>
+                        <label style="font-size:0.7em; color:#aaa;">Sonido (Opcional)</label>
+                        <select id="editCustomSound">
+                            <option value="">-- Sin sonido --</option>
+                        </select>
+                    </div>
 
-                <div id="fieldsChance" class="dyn-field" style="display:none;">
-                    <input type="number" id="editWinRate" placeholder="% Ganar (Ej: 50)">
-                    <input type="text" id="editWinMsg" placeholder="Msg Ganar: {user} ganó!">
-                    <input type="text" id="editLoseMsg" placeholder="Msg Perder: {user} perdió.">
+                    <div style="display:flex; gap:5px; margin-top:10px;">
+                        <button onclick="saveGame()" class="btn-save">Guardar</button>
+                        <button onclick="document.getElementById('gameEditor').style.display='none'" class="btn-stop">Cancelar</button>
+                    </div>
                 </div>
-                <div id="fieldsRange" class="dyn-field" style="display:none;">
-                    <input type="number" id="editMaxVal" placeholder="Max Valor (Ej: 100)">
-                    <input type="text" id="editRangeMsg" placeholder="Msg: {user} sacó {result}">
-                </div>
-                <div id="fieldsChoice" class="dyn-field" style="display:none;">
-                    <textarea id="editOptions" placeholder="Opción 1; Opción 2; ..."></textarea>
-                    <input type="text" id="editChoiceMsg" placeholder="Msg: {user} {result}">
-                </div>
-                <div id="fieldsVersus" class="dyn-field" style="display:none;">
-                    <input type="number" id="editBossHP" placeholder="HP del Boss (Ej: 100)">
-                    <input type="text" id="editVersusMsg" placeholder="{user} atacó e hizo {result} de daño!">
-                </div>
-                <div id="fieldsCommand" class="dyn-field" style="display:none;">
-                    <input type="text" id="editCmdMsg" placeholder="Mensaje de respuesta: ¡Hola {user}!">
-                    <label style="font-size:0.7em; color:#aaa;">Sonido (Opcional)</label>
-                    <select id="editCmdSound">
-                        <option value="">-- Sin sonido --</option>
-                    </select>
-                </div>
-                <div id="fieldsCustom" class="dyn-field" style="display:none;">
-                    <textarea id="editCustomCode" placeholder="Código JS: return 'Hola ' + user;"></textarea>
-                    <label style="font-size:0.7em; color:#aaa;">Sonido (Opcional)</label>
-                    <select id="editCustomSound">
-                        <option value="">-- Sin sonido --</option>
-                    </select>
-                </div>
-
-                <div style="display:flex; gap:5px; margin-top:10px;">
-                    <button onclick="saveGame()" class="btn-save">Guardar</button>
-                    <button onclick="document.getElementById('gameEditor').style.display='none'" class="btn-stop">Cancelar</button>
+                <div class="editor-right" style="flex:1;">
+                    <h2 style="color:var(--accent); border-color:var(--accent);">💻 Código JS</h2>
+                    <textarea id="codeEditor" style="width:100%; height:400px; background:#1e1e1e; color:#eee; border:1px solid #333; font-family:monospace;"></textarea>
                 </div>
             </div>
         </div>
@@ -246,6 +255,7 @@
         let selectedPlatform = 'tiktok';
         let sounds = []; // Array de sonidos disponibles
         let sessionId = null;
+        let codeEditor;
         
         // --- DATA ---
         let bannedWords = ["tonto", "idiota"];
@@ -268,6 +278,12 @@
             if(speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
             renderWords();
             renderGames();
+            codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+                mode: 'javascript',
+                theme: 'default',
+                lineNumbers: true,
+                tabSize: 2
+            });
         };
 
         socket.on('connect', () => {
@@ -360,35 +376,12 @@
         });
 
         function runGameLogic(g, user) {
-            if(g.type === 'chance') {
-                const win = Math.random()*100 < g.config.winRate;
-                return win ? g.config.winMsg.replace('{user}', user) : g.config.loseMsg.replace('{user}', user);
+            try {
+                const func = new Function('user', g.config.code);
+                return func(user);
+            } catch(e) {
+                return "Error en código personalizado";
             }
-            if(g.type === 'range') {
-                const r = Math.floor(Math.random() * (g.config.max + 1));
-                return g.config.msg.replace('{user}', user).replace('{result}', r);
-            }
-            if(g.type === 'choice') {
-                const opts = g.config.options;
-                const r = opts[Math.floor(Math.random()*opts.length)];
-                return g.config.msg.replace('{user}', user).replace('{result}', r);
-            }
-            if(g.type === 'versus') {
-                const dmg = Math.floor(Math.random() * 100);
-                return g.config.msg.replace('{user}', user).replace('{result}', dmg);
-            }
-            if(g.type === 'command') {
-                return g.config.msg.replace('{user}', user);
-            }
-            if(g.type === 'custom') {
-                try {
-                    const func = new Function('user', g.config.code);
-                    return func(user);
-                } catch(e) {
-                    return "Error en código personalizado";
-                }
-            }
-            return "";
         }
 
         function addChat(user, text, platform, type) {
@@ -444,6 +437,50 @@
             if(t==='versus') document.getElementById('fieldsVersus').style.display='block';
             if(t==='command') document.getElementById('fieldsCommand').style.display='block';
             if(t==='custom') document.getElementById('fieldsCustom').style.display='block';
+            
+            // Generate code
+            const code = generateCode(t);
+            codeEditor.setValue(code);
+        }
+        
+        function generateCode(type) {
+            if(type === 'command') {
+                const msg = document.getElementById('editCmdMsg').value || '¡Hola {user}!';
+                return `return "${msg.replace(/"/g, '\\"')}";`;
+            }
+            if(type === 'chance') {
+                const winRate = document.getElementById('editWinRate').value || 50;
+                const winMsg = document.getElementById('editWinMsg').value || '{user} ganó!';
+                const loseMsg = document.getElementById('editLoseMsg').value || '{user} perdió.';
+                return `if(Math.random() * 100 < ${winRate}) {
+    return "${winMsg.replace(/"/g, '\\"').replace('{user}', '" + user + "')}";
+} else {
+    return "${loseMsg.replace(/"/g, '\\"').replace('{user}', '" + user + "')}";
+}`;
+            }
+            if(type === 'range') {
+                const max = document.getElementById('editMaxVal').value || 100;
+                const msg = document.getElementById('editRangeMsg').value || '{user} sacó {result}';
+                return `const result = Math.floor(Math.random() * ${max}) + 1;
+return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{result}', '" + result + "')}";`;
+            }
+            if(type === 'choice') {
+                const options = document.getElementById('editOptions').value.split(';').map(s=>s.trim()) || ['Opción 1', 'Opción 2'];
+                const msg = document.getElementById('editChoiceMsg').value || '{user} eligió {result}';
+                return `const options = ${JSON.stringify(options)};
+const result = options[Math.floor(Math.random() * options.length)];
+return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{result}', '" + result + "')}";`;
+            }
+            if(type === 'versus') {
+                const bossHP = document.getElementById('editBossHP').value || 100;
+                const msg = document.getElementById('editVersusMsg').value || '{user} hizo {result} de daño!';
+                return `const damage = Math.floor(Math.random() * 50) + 1;
+return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{result}', '" + damage + "')}";`;
+            }
+            if(type === 'custom') {
+                return document.getElementById('editCustomCode').value || 'return "¡Comando personalizado!";';
+            }
+            return 'return "Comando no configurado";';
         }
         function saveGame() {
             const idx = parseInt(document.getElementById('editGameId').value);
@@ -461,6 +498,8 @@
             if(type==='versus') cfg = { bossHP: parseInt(document.getElementById('editBossHP').value), msg: document.getElementById('editVersusMsg').value };
             if(type==='command') cfg = { msg: document.getElementById('editCmdMsg').value, sound: document.getElementById('editCmdSound').value || null };
             if(type==='custom') cfg = { code: document.getElementById('editCustomCode').value, sound: document.getElementById('editCustomSound').value || null };
+            
+            cfg.code = codeEditor.getValue();
 
             const obj = { id: trig, trigger: trig, type: type, cooldown: cd, lastUsed: 0, perm: perm, config: cfg };
             if(idx === -1) gamesDB.push(obj); else gamesDB[idx] = obj;
@@ -501,6 +540,7 @@
                 document.getElementById('editCustomCode').value = g.config.code; 
                 if(g.config.sound) document.getElementById('editCustomSound').value = g.config.sound;
             }
+            if(g.config.code) codeEditor.setValue(g.config.code);
         }
         function delGame(i) { if(confirm("¿Eliminar?")) { gamesDB.splice(i,1); renderGames(); } }
 
@@ -683,7 +723,7 @@
 
         // Modal para cargar config al inicio
         window.onload = () => {
-            if(confirm("¿Quieres cargar una configuración completa (.rts) guardada anteriormente?")) {
+            if(confirm("Descarga / Carga la configuración guardada anteriormente en el engranaje")) {
                 document.getElementById('configFileInput').click();
             }
             // Continuar con init normal
