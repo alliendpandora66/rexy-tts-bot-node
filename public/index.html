@@ -288,6 +288,21 @@
                 lineNumbers: true,
                 tabSize: 2
             });
+            
+            // Add real-time update listeners
+            document.getElementById('editWinRate').addEventListener('input', updateCode);
+            document.getElementById('editWinMsg').addEventListener('input', updateCode);
+            document.getElementById('editLoseMsg').addEventListener('input', updateCode);
+            document.getElementById('editMaxVal').addEventListener('input', updateCode);
+            document.getElementById('editRangeMsg').addEventListener('input', updateCode);
+            document.getElementById('editOptions').addEventListener('input', updateCode);
+            document.getElementById('editChoiceMsg').addEventListener('input', updateCode);
+            document.getElementById('editBossHP').addEventListener('input', updateCode);
+            document.getElementById('editVersusMsg').addEventListener('input', updateCode);
+            document.getElementById('editCmdMsg').addEventListener('input', updateCode);
+            document.getElementById('editCustomCode').addEventListener('input', () => {
+                if(codeEditor) codeEditor.setValue(document.getElementById('editCustomCode').value);
+            });
         };
 
         socket.on('connect', () => {
@@ -457,9 +472,14 @@
             if(t==='custom') document.getElementById('fieldsCustom').style.display='block';
             
             // Generate code
-            const code = generateCode(t);
-            codeEditor.setValue(code);
+            updateCode();
             codeEditor.refresh();
+        }
+        
+        function updateCode() {
+            const t = document.getElementById('editType').value;
+            const code = generateCode(t);
+            if(codeEditor) codeEditor.setValue(code);
         }
         
         function generateCode(type) {
