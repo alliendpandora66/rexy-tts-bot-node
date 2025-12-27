@@ -65,6 +65,7 @@
         <button class="nav-btn active" onclick="switchTab('conn')">📡</button>
         <button class="nav-btn" onclick="switchTab('games')">🎮</button>
         <button class="nav-btn" onclick="switchTab('automod')">🛡️</button>
+        <button class="nav-btn" onclick="switchTab('config')">⚙️</button>
     </div>
 
     <div class="main-content">
@@ -206,6 +207,18 @@
                     <button onclick="exportWords()" class="btn-action">Guardar JSON</button>
                     <button onclick="document.getElementById('fileInputWords').click()" class="btn-action">Cargar JSON</button>
                     <input type="file" id="fileInputWords" accept=".json" onchange="importWords(this)">
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-config" class="config-panel">
+            <div class="card">
+                <h2>💾 Configuración Completa</h2>
+                <p style="font-size:0.8em; color:#aaa; margin-bottom:15px;">Guarda o carga toda la configuración de la app (minijuegos, comandos, sonidos, palabras ban, ajustes de voz).</p>
+                <div style="display:flex; gap:5px;">
+                    <button onclick="downloadFullConfig()" class="btn-save" style="flex:1;">Descargar Config (.rts)</button>
+                    <button onclick="document.getElementById('configFileInput').click()" class="btn-action" style="flex:1;">Cargar Config (.rts)</button>
+                    <input type="file" id="configFileInput" accept=".rts" onchange="loadFullConfig(this)" style="display:none;">
                 </div>
             </div>
         </div>
@@ -595,6 +608,59 @@
             const r = new FileReader(); r.onload = e => cb(JSON.parse(e.target.result)); r.readAsText(f);
         }
 
+        // --- FULL CONFIG ---
+        function downloadFullConfig() {
+            const config = {
+                games: gamesDB,
+                bannedWords: bannedWords,
+                sounds: sounds.map(s => s.filename), // Solo filenames, usuario debe subirlos
+                settings: {
+                    voiceIndex: document.getElementById('voiceSelect').selectedIndex,
+                    rate: document.getElementById('rate').value,
+                    volume: document.getElementById('volume').value,
+                    readName: document.getElementById('readName').checked
+                }
+            };
+            downloadJSON(config, "rexy_config.rts");
+        }
+
+        function loadFullConfig(input) {
+            loadJSON(input, data => {
+                if(data.games) gamesDB = data.games;
+                if(data.bannedWords) bannedWords = data.bannedWords;
+                if(data.sounds) {
+                    // Nota: sonidos deben estar subidos, aquí solo referencia
+                    alert("Recuerda subir los sonidos referenciados en la config si no están disponibles.");
+                }
+                if(data.settings) {
+                    if(data.settings.voiceIndex !== undefined) document.getElementById('voiceSelect').selectedIndex = data.settings.voiceIndex;
+                    if(data.settings.rate) document.getElementById('rate').value = data.settings.rate;
+                    if(data.settings.volume) document.getElementById('volume').value = data.settings.volume;
+                    if(data.settings.readName !== undefined) document.getElementById('readName').checked = data.settings.readName;
+                }
+                renderGames();
+                renderWords();
+                renderSoundsList();
+                updateSoundSelects();
+                alert("Configuración cargada. Recarga sonidos si es necesario.");
+            });
+        }
+
+        // Modal para cargar config al inicio
+        window.onload = () => {
+            if(confirm("¿Quieres cargar una configuración completa (.rts) guardada anteriormente?")) {
+                document.getElementById('configFileInput').click();
+            }
+            // Continuar con init normal
+            loadVoices();
+            loadSounds();
+            renderGames();
+            renderWords();
+        };
+
     </script>
+
+    <!-- Modal para config inicial (opcional, pero usamos confirm por simplicidad) -->
+
 </body>
 </html>
