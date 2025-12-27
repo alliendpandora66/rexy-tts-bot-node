@@ -245,6 +245,7 @@
         let isSpeaking = false;
         let selectedPlatform = 'tiktok';
         let sounds = []; // Array de sonidos disponibles
+        let sessionId = null;
         
         // --- DATA ---
         let bannedWords = ["tonto", "idiota"];
@@ -267,8 +268,12 @@
             if(speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
             renderWords();
             renderGames();
-            loadSounds();
         };
+
+        socket.on('connect', () => {
+            sessionId = socket.id;
+            loadSounds();
+        });
 
         function switchTab(tab) {
             document.querySelectorAll('.config-panel').forEach(p => p.classList.remove('active'));
@@ -501,7 +506,8 @@
 
         // --- SOUNDS MANAGEMENT ---
         function loadSounds() {
-            fetch('/api/sounds')
+            if (!sessionId) return;
+            fetch(`/api/sounds?sessionId=${sessionId}`)
                 .then(r => r.json())
                 .then(data => {
                     sounds = data;
@@ -554,6 +560,7 @@
 
             const formData = new FormData();
             formData.append('sound', file);
+            formData.append('sessionId', sessionId);
 
             try {
                 const res = await fetch('/api/upload-sound', { method: 'POST', body: formData });
@@ -577,7 +584,7 @@
 
         function deleteSound(filename) {
             if(!confirm('¿Eliminar este sonido?')) return;
-            fetch(`/api/sounds/${filename}`, { method: 'DELETE' })
+            fetch(`/api/sounds/${filename}?sessionId=${sessionId}`, { method: 'DELETE' })
                 .then(r => r.json())
                 .then(data => {
                     if(data.success) loadSounds();
@@ -609,11 +616,25 @@
         }
 
         // --- FULL CONFIG ---
-        function downloadFullConfig() {
+        async function downloadFullConfig() {
+            // Obtener base64 de sonidos
+            const soundData = [];
+            for (const s of sounds) {
+                try {
+                    const res = await fetch(`/api/sounds/${s.filename}/base64?sessionId=${sessionId}`);
+                    const data = await res.json();
+                    if (data.base64) {
+                        soundData.push({ filename: s.filename, base64: data.base64 });
+                    }
+                } catch (e) {
+                    console.error('Error obteniendo base64 para', s.filename, e);
+                }
+            }
+            
             const config = {
                 games: gamesDB,
                 bannedWords: bannedWords,
-                sounds: sounds.map(s => s.filename), // Solo filenames, usuario debe subirlos
+                sounds: soundData, // Ahora con base64
                 settings: {
                     voiceIndex: document.getElementById('voiceSelect').selectedIndex,
                     rate: document.getElementById('rate').value,
@@ -624,13 +645,27 @@
             downloadJSON(config, "rexy_config.rts");
         }
 
-        function loadFullConfig(input) {
-            loadJSON(input, data => {
+        async function loadFullConfig(input) {
+            loadJSON(input, async data => {
                 if(data.games) gamesDB = data.games;
                 if(data.bannedWords) bannedWords = data.bannedWords;
-                if(data.sounds) {
-                    // Nota: sonidos deben estar subidos, aquí solo referencia
-                    alert("Recuerda subir los sonidos referenciados en la config si no están disponibles.");
+                if(data.sounds && Array.isArray(data.sounds)) {
+                    // Subir sonidos desde base64
+                    for (const s of data.sounds) {
+                        if (s.base64 && s.filename) {
+                            try {
+                                const res = await fetch('/api/upload-sound-base64', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ base64: s.base64, filename: s.filename, sessionId })
+                                });
+                                const result = await res.json();
+                                if (!result.success) console.error('Error subiendo', s.filename);
+                            } catch (e) {
+                                console.error('Error subiendo sonido', s.filename, e);
+                            }
+                        }
+                    }
                 }
                 if(data.settings) {
                     if(data.settings.voiceIndex !== undefined) document.getElementById('voiceSelect').selectedIndex = data.settings.voiceIndex;
@@ -640,9 +675,9 @@
                 }
                 renderGames();
                 renderWords();
-                renderSoundsList();
+                loadSounds(); // Recargar sonidos después de subir
                 updateSoundSelects();
-                alert("Configuración cargada. Recarga sonidos si es necesario.");
+                alert("Configuración cargada y sonidos subidos.");
             });
         }
 

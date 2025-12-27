@@ -12,7 +12,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static('public'));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // Configurar multer para subida de archivos
 const soundsDir = path.join(__dirname, 'sounds');
@@ -41,10 +41,18 @@ const upload = multer({
 // ALMACÉN DE SESIONES
 // Cada socket tiene su propia conexión a TikTok/Twitch
 const sessions = new Map();
+const sessionSounds = new Map(); // socketId => Set<filenames>
 
 // API para subir sonidos
 app.post('/api/upload-sound', upload.single('sound'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No se subió archivo' });
+    
+    const sessionId = req.body.sessionId;
+    if (!sessionId) return res.status(400).json({ error: 'Falta sessionId' });
+    
+    // Agregar a sessionSounds
+    if (!sessionSounds.has(sessionId)) sessionSounds.set(sessionId, new Set());
+    sessionSounds.get(sessionId).add(req.file.filename);
     
     const soundName = path.basename(req.file.filename, path.extname(req.file.filename));
     res.json({ 
@@ -57,21 +65,45 @@ app.post('/api/upload-sound', upload.single('sound'), (req, res) => {
 
 // API para listar sonidos
 app.get('/api/sounds', (req, res) => {
-    fs.readdir(soundsDir, (err, files) => {
-        if (err) return res.status(500).json({ error: 'Error al leer carpeta' });
-        const sounds = files.map(f => ({ filename: f, url: `/sounds/${f}` }));
-        res.json(sounds);
-    });
+    const sessionId = req.query.sessionId;
+    if (!sessionId) return res.status(400).json({ error: 'Falta sessionId' });
+    
+    const userSounds = sessionSounds.get(sessionId) || new Set();
+    const sounds = Array.from(userSounds).map(f => ({ filename: f, url: `/sounds/${f}` }));
+    res.json(sounds);
 });
 
-// API para eliminar sonido
-app.delete('/api/sounds/:filename', (req, res) => {
-    const filepath = path.join(soundsDir, req.params.filename);
-    if (!filepath.startsWith(soundsDir)) return res.status(400).json({ error: 'Acceso denegado' });
+// API para obtener sonido en base64
+app.get('/api/sounds/:filename/base64', (req, res) => {
+    const sessionId = req.query.sessionId;
+    if (!sessionId || !sessionSounds.get(sessionId)?.has(req.params.filename)) {
+        return res.status(403).json({ error: 'Acceso denegado' });
+    }
     
-    fs.unlink(filepath, (err) => {
-        if (err) return res.status(500).json({ error: 'Error al eliminar' });
-        res.json({ success: true });
+    const filepath = path.join(soundsDir, req.params.filename);
+    if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Archivo no encontrado' });
+    
+    const data = fs.readFileSync(filepath);
+    const base64 = data.toString('base64');
+    res.json({ base64, filename: req.params.filename });
+});
+
+// API para subir sonido desde base64
+app.post('/api/upload-sound-base64', express.json(), (req, res) => {
+    const { base64, filename, sessionId } = req.body;
+    if (!base64 || !filename || !sessionId) return res.status(400).json({ error: 'Faltan datos' });
+    
+    const buffer = Buffer.from(base64, 'base64');
+    const filepath = path.join(soundsDir, filename);
+    
+    fs.writeFile(filepath, buffer, (err) => {
+        if (err) return res.status(500).json({ error: 'Error al guardar' });
+        
+        // Agregar a sessionSounds
+        if (!sessionSounds.has(sessionId)) sessionSounds.set(sessionId, new Set());
+        sessionSounds.get(sessionId).add(filename);
+        
+        res.json({ success: true, filename, url: `/sounds/${filename}` });
     });
 });
 
@@ -188,6 +220,19 @@ io.on('connection', (socket) => {
             try { session.client.disconnect(); } catch (e) {}
         }
         sessions.delete(socket.id);
+        
+        // Eliminar sonidos de la sesión
+        const userSounds = sessionSounds.get(socket.id);
+        if (userSounds) {
+            userSounds.forEach(filename => {
+                const filepath = path.join(soundsDir, filename);
+                fs.unlink(filepath, (err) => {
+                    if (err) console.log(`Error eliminando ${filename}:`, err);
+                    else console.log(`Eliminado ${filename} de sesión ${socket.id}`);
+                });
+            });
+            sessionSounds.delete(socket.id);
+        }
     });
 });
 
