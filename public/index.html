@@ -28,6 +28,7 @@
         
         /* Chat Area */
         .chat-area { flex-grow: 1; display: flex; flex-direction: column; background: #000; border-radius: 16px; border: 1px solid #333; overflow: hidden; }
+        .editor-open .chat-area { display: none; }
         
         /* Game Editor */
         #gameEditor { position: fixed; right: 0; top: 0; width: 50%; height: 100%; background: var(--panel); border-left: 1px solid #333; display: none; flex-direction: row; padding: 20px; overflow-y: auto; z-index: 5; }
@@ -73,6 +74,7 @@
         <button class="nav-btn" onclick="switchTab('games')">🎮</button>
         <button class="nav-btn" onclick="switchTab('automod')">🛡️</button>
         <button class="nav-btn" onclick="switchTab('config')">⚙️</button>
+        <button class="nav-btn" onclick="switchTab('wiki')">📖</button>
     </div>
 
     <div class="main-content">
@@ -236,6 +238,77 @@
             </div>
         </div>
 
+        <div id="tab-wiki" class="config-panel">
+            <div class="card">
+                <h2>📖 Wiki de la Web</h2>
+                <p style="font-size:0.9em; color:#ccc; margin-bottom:15px;">Información completa sobre Rexy TTS Pro - Aplicación de Text-to-Speech para TikTok y Twitch.</p>
+                <h3 style="color:var(--accent); margin:10px 0;">¿Qué es Rexy?</h3>
+                <p>Rexy es una aplicación web avanzada que convierte mensajes de chat en vivo de TikTok y Twitch en voz sintetizada, permitiendo interacciones dinámicas con comandos personalizados, minijuegos y efectos de sonido.</p>
+                <h3 style="color:var(--accent); margin:10px 0;">Características Principales</h3>
+                <ul style="font-size:0.9em; color:#bbb;">
+                    <li><strong>Conexión en Tiempo Real:</strong> Conecta tu cuenta de TikTok o Twitch para recibir mensajes en vivo.</li>
+                    <li><strong>Voz Sintetizada:</strong> Elige entre múltiples voces y ajusta velocidad y volumen.</li>
+                    <li><strong>Comandos y Juegos:</strong> Crea comandos personalizados y minijuegos interactivos.</li>
+                    <li><strong>Moderación Automática:</strong> Filtra palabras prohibidas automáticamente.</li>
+                    <li><strong>Efectos de Sonido:</strong> Sube y asigna sonidos a comandos o eventos.</li>
+                    <li><strong>Configuración Completa:</strong> Guarda y carga configuraciones personalizadas.</li>
+                </ul>
+                <h3 style="color:var(--accent); margin:10px 0;">Cómo Usar</h3>
+                <ol style="font-size:0.9em; color:#bbb;">
+                    <li>Conecta tu cuenta en la pestaña Conexión.</li>
+                    <li>Configura la voz en la pestaña Conexión.</li>
+                    <li>Crea juegos y comandos en la pestaña Juegos.</li>
+                    <li>Sube sonidos en la pestaña Automod.</li>
+                    <li>Configura palabras prohibidas en Automod.</li>
+                    <li>Guarda tu configuración en la pestaña Configuración.</li>
+                </ol>
+                <h3 style="color:var(--accent); margin:10px 0;">🎮 Creación de Minijuegos</h3>
+                <p style="font-size:0.9em; color:#bbb; margin-bottom:10px;">Rexy ofrece varios tipos de minijuegos que puedes crear fácilmente sin escribir código (o personalizarlos con código JavaScript).</p>
+                
+                <h4 style="color:#00f2ea; font-size:0.9em; margin:8px 0;">1️⃣ Probabilidad (Win/Lose)</h4>
+                <p style="font-size:0.85em; color:#aaa; margin:5px 0;">El usuario tiene una probabilidad de ganar o perder. Ejemplos: ruleta rusa, moneda al aire, apuestas.</p>
+                <p style="font-size:0.8em; color:#666; margin:5px 0;"><strong>Parámetros:</strong> % Ganar, Mensaje Ganar, Mensaje Perder. Usa <code>{user}</code> para el nombre del usuario.</p>
+                
+                <h4 style="color:#00f2ea; font-size:0.9em; margin:8px 0;">2️⃣ Rango (Dados/1-100)</h4>
+                <p style="font-size:0.85em; color:#aaa; margin:5px 0;">El usuario obtiene un número aleatorio dentro de un rango. Ejemplos: tirar dados, lotería, adivina el número.</p>
+                <p style="font-size:0.8em; color:#666; margin:5px 0;"><strong>Parámetros:</strong> Valor máximo, Mensaje. Usa <code>{user}</code> y <code>{result}</code> para el resultado.</p>
+                
+                <h4 style="color:#00f2ea; font-size:0.9em; margin:8px 0;">3️⃣ Elección (Lista)</h4>
+                <p style="font-size:0.85em; color:#aaa; margin:5px 0;">El usuario obtiene una opción aleatoria de una lista que defines. Ejemplos: adivinanzas, sorteos, selecciones.</p>
+                <p style="font-size:0.8em; color:#666; margin:5px 0;"><strong>Parámetros:</strong> Lista de opciones (separadas por ;), Mensaje. Usa <code>{user}</code> y <code>{result}</code>.</p>
+                
+                <h4 style="color:#00f2ea; font-size:0.9em; margin:8px 0;">⚔️ Versus (Batalla)</h4>
+                <p style="font-size:0.85em; color:#aaa; margin:5px 0;">El usuario ataca a un jefe/enemigo y hace daño. Perfecto para jefes de fase o batallas progresivas.</p>
+                <p style="font-size:0.8em; color:#666; margin:5px 0;"><strong>Parámetros:</strong> HP del Boss, Mensaje. Usa <code>{user}</code> y <code>{result}</code> para el daño.</p>
+                
+                <h4 style="color:#00f2ea; font-size:0.9em; margin:8px 0;">💬 Comando Respuesta</h4>
+                <p style="font-size:0.85em; color:#aaa; margin:5px 0;">Un comando simple que responde con un mensaje fijo. Perfecto para ayuda, links, información.</p>
+                <p style="font-size:0.8em; color:#666; margin:5px 0;"><strong>Parámetros:</strong> Mensaje de respuesta, Sonido (opcional). Usa <code>{user}</code> para personalizar.</p>
+                
+                <h4 style="color:#00f2ea; font-size:0.9em; margin:8px 0;">⚙️ Personalizado (Código)</h4>
+                <p style="font-size:0.85em; color:#aaa; margin:5px 0;">Escribe código JavaScript personalizado para crear lógica compleja. Tienes acceso a la variable <code>user</code> (nombre del usuario).</p>
+                <p style="font-size:0.8em; color:#666; margin:5px 0;"><strong>Ejemplo:</strong> <code>return "Hola " + user + ", tu número lucky es " + Math.floor(Math.random() * 100);</code></p>
+                
+                <h3 style="color:var(--accent); margin:10px 0;">⚙️ Configuración General</h3>
+                <ul style="font-size:0.9em; color:#bbb;">
+                    <li><strong>Comando (Trigger):</strong> Palabra clave que activa el minijuego (ej: !ruleta, !boss, !adivina).</li>
+                    <li><strong>Cooldown:</strong> Segundos que deben esperar entre usos (evita spam).</li>
+                    <li><strong>Permisos:</strong> Quién puede usar el comando (Todos, Solo Mods, Solo Suscriptores).</li>
+                    <li><strong>Sonido:</strong> Efecto de sonido que se reproduce al ejecutar (opcional).</li>
+                </ul>
+                
+                <h3 style="color:var(--accent); margin:10px 0;">💡 Consejos</h3>
+                <ul style="font-size:0.9em; color:#bbb;">
+                    <li>Usa <code>{user}</code> en los mensajes para personalizar con el nombre del usuario.</li>
+                    <li>Los comandos deben empezar con ! (ej: !ruleta) para ser reconocidos.</li>
+                    <li>Los cooldowns previenen que el chat spam constantemente un comando.</li>
+                    <li>Asigna sonidos a los minijuegos populares para mayor diversión.</li>
+                    <li>Prueba los comandos antes de ir en vivo para verificar que funcionen correctamente.</li>
+                </ul>
+                <p style="font-size:0.8em; color:#666; margin-top:15px;">Versión 4.0 - Desarrollado con ❤️ para streamers.</p>
+            </div>
+        </div>
+
         <div class="chat-area">
             <div style="padding:15px; background:#111; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:bold; color:var(--text);">Chat en vivo</span>
@@ -300,6 +373,7 @@
             document.getElementById('editBossHP').addEventListener('input', updateCode);
             document.getElementById('editVersusMsg').addEventListener('input', updateCode);
             document.getElementById('editCmdMsg').addEventListener('input', updateCode);
+            document.getElementById('editType').addEventListener('change', updateCode);
             document.getElementById('editCustomCode').addEventListener('input', () => {
                 if(codeEditor) codeEditor.setValue(document.getElementById('editCustomCode').value);
             });
@@ -343,7 +417,14 @@
             socket.emit('start-connection', { platform: selectedPlatform, url: u });
             document.getElementById('statusBox').innerText = "Conectando...";
         }
-        function disconnect() { socket.emit('stop-connection'); }
+        function disconnect() { 
+            socket.emit('stop-connection'); 
+            if(sessionId) {
+                fetch('/api/delete-sounds?sessionId=' + sessionId)
+                    .then(() => { sounds = []; renderSoundsList(); updateSoundSelects(); })
+                    .catch(e => console.error('Error al borrar sonidos:', e));
+            }
+        }
         
         socket.on('status', d => {
             document.getElementById('statusBox').innerText = d.msg;
@@ -454,6 +535,18 @@
             });
             updateEditorUI();
             codeEditor.refresh();
+            // Re-registrar listeners
+            registerEditorListeners();
+        }
+        
+        function registerEditorListeners() {
+            ['editWinRate', 'editWinMsg', 'editLoseMsg', 'editMaxVal', 'editRangeMsg', 'editOptions', 'editChoiceMsg', 'editBossHP', 'editVersusMsg', 'editCmdMsg'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) {
+                    el.removeEventListener('input', updateCode);
+                    el.addEventListener('input', updateCode);
+                }
+            });
         }
         function closeEditor() {
             document.body.classList.remove('editor-open');
@@ -477,20 +570,21 @@
         }
         
         function updateCode() {
+            if(!codeEditor) return;
             const t = document.getElementById('editType').value;
             const code = generateCode(t);
-            if(codeEditor) codeEditor.setValue(code);
+            codeEditor.setValue(code);
         }
         
         function generateCode(type) {
             if(type === 'command') {
-                const msg = document.getElementById('editCmdMsg').value || '¡Hola {user}!';
-                return `return "${msg.replace(/"/g, '\\"')}";`;
+                const msg = document.getElementById('editCmdMsg').value.trim() || '¡Hola {user}!';
+                return `return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "')}";`;
             }
             if(type === 'chance') {
-                const winRate = document.getElementById('editWinRate').value || 50;
-                const winMsg = document.getElementById('editWinMsg').value || '{user} ganó!';
-                const loseMsg = document.getElementById('editLoseMsg').value || '{user} perdió.';
+                const winRate = parseInt(document.getElementById('editWinRate').value) || 50;
+                const winMsg = document.getElementById('editWinMsg').value.trim() || '{user} ganó!';
+                const loseMsg = document.getElementById('editLoseMsg').value.trim() || '{user} perdió.';
                 return `if(Math.random() * 100 < ${winRate}) {
     return "${winMsg.replace(/"/g, '\\"').replace('{user}', '" + user + "')}";
 } else {
@@ -498,21 +592,22 @@
 }`;
             }
             if(type === 'range') {
-                const max = document.getElementById('editMaxVal').value || 100;
-                const msg = document.getElementById('editRangeMsg').value || '{user} sacó {result}';
+                const max = parseInt(document.getElementById('editMaxVal').value) || 100;
+                const msg = document.getElementById('editRangeMsg').value.trim() || '{user} sacó {result}';
                 return `const result = Math.floor(Math.random() * ${max}) + 1;
 return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{result}', '" + result + "')}";`;
             }
             if(type === 'choice') {
-                const options = document.getElementById('editOptions').value.split(';').map(s=>s.trim()) || ['Opción 1', 'Opción 2'];
-                const msg = document.getElementById('editChoiceMsg').value || '{user} eligió {result}';
+                const optText = document.getElementById('editOptions').value.trim();
+                const options = optText ? optText.split(';').map(s=>s.trim()).filter(s=>s) : ['Opción 1', 'Opción 2'];
+                const msg = document.getElementById('editChoiceMsg').value.trim() || '{user} eligió {result}';
                 return `const options = ${JSON.stringify(options)};
 const result = options[Math.floor(Math.random() * options.length)];
 return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{result}', '" + result + "')}";`;
             }
             if(type === 'versus') {
-                const bossHP = document.getElementById('editBossHP').value || 100;
-                const msg = document.getElementById('editVersusMsg').value || '{user} hizo {result} de daño!';
+                const bossHP = parseInt(document.getElementById('editBossHP').value) || 100;
+                const msg = document.getElementById('editVersusMsg').value.trim() || '{user} hizo {result} de daño!';
                 return `const damage = Math.floor(Math.random() * 50) + 1;
 return "${msg.replace(/"/g, '\\"').replace('{user}', '" + user + "').replace('{result}', '" + damage + "')}";`;
             }
